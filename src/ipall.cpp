@@ -272,7 +272,7 @@ int main(int argc, char* argv[]) {
     solver->set("restart", false);
     solver->set("inprocessing", false);
     solver->set("rephase", true);
-    solver->set("log", true);
+    solver->set("log", false);
 
     // create a new EnumProp instance
     EnumProp *ep = new EnumProp;

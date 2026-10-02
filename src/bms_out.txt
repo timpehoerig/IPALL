@@ -1,0 +1,12 @@
+
+mit out-of-order propagations:
+
+    Options: --timeout 60
+    count   verified        correct false   timeout dualiza ipall   CNF
+    242     verified        107     113     22      20      20      BMS_k3_n100_m429_369.cnf
+
+ohne out-of-order propagations (wirklich ohne?):
+
+    Options: --timeout 5
+    count   verified        correct false   timeout dualiza ipall   CNF
+    242     verified        100     96      46      20      20      BMS_k3_n100_m429_369.cnf
