@@ -94,6 +94,9 @@ def color(text: str, color: Color) -> str:
 
 
 def pretty(results: dict[str, int], count: Count, status: Status, cnf: str) -> None:
+    if parse.silent:
+        return
+
     top: str = "count\tverified\tcorrect\tfalse\ttimeout\tdualiza\tipall\tCNF"
     bot: str = f"{count.count}\t"
 
@@ -199,6 +202,20 @@ def parser() -> argparse.ArgumentParser:
         help="Path to the directory where timeout CNFs will be stored."
     )
 
+    parser.add_argument(
+        "--break_on_fail",
+        type=bool,
+        default=False,
+        help="Break on first failed CNF."
+    )
+
+    parser.add_argument(
+        "--silent",
+        type=bool,
+        default=False,
+        help="Silent mode."
+    )
+
     return parser
 
 
@@ -243,6 +260,8 @@ if __name__ == "__main__":
             if status is Status.FAILED:
                 os.makedirs(parse.faileddir, exist_ok=True)
                 shutil.copy(f"{parse.tmpdir}/{parse.fuzzname}.cnf", f"{parse.faileddir}/fuzzed_{count.count}_dc{dc}_ic{ic}.cnf")
+                if parse.break_on_fail:
+                    break
             if status is Status.TIMEOUT:
                 os.makedirs(parse.timeoutdir, exist_ok=True)
                 shutil.copy(f"{parse.tmpdir}/{parse.fuzzname}.cnf", f"{parse.timeoutdir}/fuzzed_{count.count}_dc{dc}_ic{ic}_timeout.cnf")

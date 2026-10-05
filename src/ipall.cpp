@@ -96,11 +96,11 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
         tmodels all_models;
 
         bool cb_check_found_model (const tmodel &model) override {
-            if (VERBOSE) std::cout << "c\nc cb_check_found_model:" << to_string(model) << std::endl;
+            if (VERBOSE) std::cout << "c\nc cb_check_found_model - model: " << to_string(model) << std::endl;
 
             if (COUNT) {
                 count++;
-                if (VERBOSE) std::cout << "c count += 1" << std::endl;
+                if (VERBOSE) std::cout << "c model count = " << count << std::endl;
             } else {
                 all_models.push_back(model);
             }
@@ -112,8 +112,6 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
             }
 
             solver->force_backtrack(dl - 1);
-
-            if (VERBOSE) std::cout << to_string(decisions, reason_to_dl, dl) << std::endl;
 
             return false;
         };
@@ -131,36 +129,29 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
 
         // this function is called when observed variables are assigned (either by BCP, Decide, or Learning a unit clause). It has a single read-only argument containing literals that became satisfied by the new assignment. In case the notification reports more than one literal, it is guaranteed that all of the reported literals were assigned on the same (current) decision level.
         void notify_assignment(const ivec &list) override {
-            if (VERBOSE) std::cout << "c\nc notify_assignment: " << to_string(list) << std::endl;
+            if (VERBOSE) std::cout << "c\nc notify_assignment - assignments: " << to_string(list) << std::endl;
 
             assert (list.size() > 0);
-
             if (solver->is_decision(list[0])) {
                 if (decisions.size() <= dl) {
                     decisions.push_back(list[0]);
                 } else {
                     decisions[dl] = list[0];
                 }
-            }
-
-            if (VERBOSE) {
-                std::cout << "c decided: " + std::to_string(decisions[dl]) + "@" + std::to_string(dl) << std::endl;
-                std::cout << to_string(decisions, reason_to_dl, dl) << std::endl;
+                if (VERBOSE) std::cout << "c decided: " << decisions[dl] << "@" << dl << std::endl;
             }
         };
 
         // the call of this function indicates to the user that on the trail a new decision level has started. The function does not report the actual decision that started this new level or the current decision level — it only reports that a decision happened and thus, the decision level is increased.
         void notify_new_decision_level () override {
-            if (VERBOSE) std::cout << "c\nc notify_new_decision_level: " << std::to_string(dl + 1) << std::endl;
+            if (VERBOSE) std::cout << "c\nc notify_new_decision_level - new dl: " << std::to_string(dl + 1) << std::endl;
 
             dl++;
-
-            if (VERBOSE) std::cout << to_string(decisions, reason_to_dl, dl) << std::endl;
         };
 
         // this function indicates that the solver backtracked to a lower decision level. Its single argument reports the new decision level. All assignments that were made above this target decision level must be considered as unassigned.
         void notify_backtrack (size_t new_level) override {
-            if (VERBOSE) std::cout << "c\nc notify_backtrack: " << std::to_string(new_level) << std::endl;
+            if (VERBOSE) std::cout << "c\nc notify_backtrack - new dl: " << std::to_string(new_level) << std::endl;
 
             while (decisions.size() - 1 > new_level) {
                 if (VERBOSE) std::cout << "c removed decision: " << std::to_string(decisions.back()) << std::endl;
@@ -169,10 +160,7 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
                 decisions.pop_back();
                 propagate_lit = true;
             }
-
             dl = new_level;
-
-            if (VERBOSE) std::cout << to_string(decisions, reason_to_dl, dl) << std::endl;
         };
 
         // called before the solver makes a decision. Return your decision or 0 (solver makes one).
@@ -186,26 +174,38 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
             if (VERBOSE) std::cout << "c\nc cb_propagate:" << std::endl;
 
             if (!propagate_lit) {
+                if (VERBOSE) std::cout << "c nothing to propagate" << std::endl; 
                 return 0;
             }
 
             propagate_lit = false;
             reason_to_dl[std::abs(decision_to_propagate)] = dl;
-            if (VERBOSE) std::cout << "c propagated: " << std::to_string(-decision_to_propagate) << " @ " << std::to_string(dl) << std::endl;
-
-
-            if (VERBOSE) std::cout << to_string(decisions, reason_to_dl, dl) << std::endl;
+            if (VERBOSE) std::cout << "c propagated: " << std::to_string(-decision_to_propagate) << "@" << std::to_string(dl) << std::endl;
 
             return -decision_to_propagate;
         };
 
         int cb_add_reason_clause_lit (int propagated_lit) override {
-            if (VERBOSE) std::cout << "c\nc cb_add_reason_clause_lit: " << std::to_string(propagated_lit) << std::endl;
+            if (VERBOSE) std::cout << "c\nc cb_add_reason_clause_lit - for: " << std::to_string(propagated_lit) << std::endl;
 
             static bool flag = true;
-            static size_t reason_clause_idx = 0;
+            static int reason_clause_idx = 0;
 
             if (flag) {
+
+                if (VERBOSE) {
+                    std::cout << "c reason_to_dl: ";
+                    for (int i = 0; (size_t)i < reason_to_dl.size(); i++) {
+                        std::cout << i << "@" << reason_to_dl[i] << " ";
+                    }
+                    std::cout << std::endl;
+                    std::cout << "c decisions: ";
+                    for (int i = 0; (size_t)i < decisions.size(); i++) {
+                        std::cout << decisions[i] << "@" << i << " ";
+                    }
+                    std::cout << std::endl;
+                }
+
                 reason_clause_idx = reason_to_dl[std::abs(propagated_lit)];
                 flag = false;
                 if (VERBOSE) std::cout << "c adding: " << std::to_string(propagated_lit) << std::endl;
@@ -221,7 +221,7 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
 
             if (VERBOSE) std::cout << "c adding: 0" << std::endl;
             flag = true;
-            if (VERBOSE) std::cout << to_string(decisions, reason_to_dl, dl) << std::endl;
+            reason_clause_idx = 0;
             return 0;
         };
 };
@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
     // setting options for chronological backtracking
     // how to disable preprocessing?
     // false != not set
-    // solver->set("chrono", true);
+    solver->set("chrono", true);
     solver->set("chronoalways", true);
     solver->set("chronostrict", true);
     solver->set("restart", false);

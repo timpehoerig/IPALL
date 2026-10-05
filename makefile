@@ -7,6 +7,4 @@ src:
 
 clean:
 	$(MAKE) -C src clean
-	rm -f -r ./tests/tmp*
-	rm -f -r ./stats/tmp*
-	rm -f -r ./verify/tmp*
+	rm -f -r ./verify/tmp/

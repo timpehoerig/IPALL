@@ -46,58 +46,21 @@ std::string to_string(ivvec models, bool neg) {
     return str;
 }
 
-// to_string(values, dls, is_ds) == ..."
-std::string to_string(const ivec &stack, const ivec &values, const ivec &dls, const bvec &is_ds) {
-    std::string top = "c lvl (" + std::to_string(dls[0]) + ")";
-    std::string mid = "c val ( " + std::to_string(values[0]) + ")";
-    std::string bot = "c why ( " + std::string(is_ds[0] ? "d" : "f") + ")";
 
-    int old_l = -1;
-    for (int var : stack) {
-        int v = values[var];
-        int l = dls[var];
-        bool d = is_ds[var];
-
-        if (l > old_l) {
-            top += " | " + std::to_string(l) + " ";
-            mid += " | " + std::to_string(v * var) + " ";
-            bot += " | " + std::string((d ? "d" : "f")) + " ";
-            old_l = l;
-        } else {
-            mid += std::to_string(v * var) + " ";
-            bot += std::string((d ? "d" : "f")) + " ";
-        }
-        size_t m = std::max(top.size(), std::max(mid.size(), bot.size()));
-        while (top.size() < m) top += " ";
-        while (mid.size() < m) mid += " ";
-        while (bot.size() < m) bot += " ";
+std::string to_string(const ivec &decisions, const ivec &reason_to_dl, int dl, int decision_to_propagate, bool propagate_lit, bool debug) {
+    std::string out = "";
+    if (debug) {
+        out += "c debug decisions: " + to_string(decisions) + "\n";
+        out += "c debug reason_to_dl: " + to_string(reason_to_dl) + "\n";
+        out += "c debug dl: " + std::to_string(dl) + "\n";
+        out += "c debug decision_to_propagate: " + std::to_string(decision_to_propagate) + "\n";
+        out += "c debug propagate_lit: " + std::to_string(propagate_lit) + "\n";
     }
-    top += " |";
-    mid += " |";
-    bot += " |";
 
-    return top + "\n" + mid + "\n" + bot + "\n";
-}
-
-std::string to_string(const ivec &decisions, const ivec &decisions_count, int dl) {
-    std::string top = "c dl (0)";
-    std::string mid = "c d  (" + std::to_string(decisions[0]) + ")";
-    std::string bot = "c dc (" + std::to_string(decisions_count[0]) + ")";
-
-    for (int i = 1; i < (int)decisions.size() || i < (int)decisions_count.size(); i++) {
-
-        top += " | " + std::to_string(i) + " ";
-        if (i < (int)decisions.size()) mid += " | " + std::to_string(decisions[i]) + " ";
-        if (i < (int)decisions_count.size()) bot += " | " + std::to_string(decisions_count[i]) + " ";
-
-        size_t m = std::max(top.size(), std::max(mid.size(), bot.size()));
-        while (top.size() < m) top += " ";
-        while (mid.size() < m) mid += " ";
-        while (bot.size() < m) bot += " ";
+    out += "c decisions: ";
+    for (int idl = 0; idl <= dl; idl++) {
+        if (idl >= (int)decisions.size()) break;
+        out += std::to_string(decisions[idl]) + "@" + std::to_string(idl) + " ";
     }
-    top += " |";
-    mid += " |";
-    bot += " |";
-
-    return top + "\n" + mid + "\n" + bot + "\n";
+    return out;
 }
