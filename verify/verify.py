@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import random
 
 from enum import Enum
 from dataclasses import dataclass
@@ -31,6 +32,34 @@ def run_and_wrap(executable: str, *args: str) -> int:
         return -1
 
 
+def generate_options() -> str:
+    ignore_options = [
+        "chrono",
+        "chronoalways",
+        "chronostrict",
+        "restart",
+        "inprocessing",
+    ]
+    out = ""
+    lines = run_cpp(parse.options).stdout.split("\n")
+    for line in lines:
+        if line == "":
+            continue
+
+        option, default, lo, hi = line.split(" ")
+
+        if option in ignore_options:
+            continue
+
+        assert option not in ignore_options
+
+        value = random.randint(int(lo), int(hi))
+
+        out += f"c --{option}={value}\n"
+
+    return out
+
+
 def dualiza(path_cnf: str) -> int:
     return run_and_wrap(parse.dualiza, path_cnf)
 
@@ -41,6 +70,8 @@ def ipall(path_cnf: str) -> int:
 
 def fuzz(path_cnf: str) -> None:
     with open(path_cnf, "w") as f:
+        if parse.options != "":
+            f.write(generate_options())
         f.write(run_cpp(parse.cnfuzz, f"--{parse.size}").stdout)
 
 
@@ -112,7 +143,7 @@ def pretty(results: dict[str, int], count: Count, status: Status, cnf: str) -> N
 
     options = "Options:"
     if parse.cnf == "" and parse.directory == "":
-        options += f" --{parse.size}"
+        options += f" --size {parse.size}"
     options += f" --timeout {parse.timeout}"
     options += "\n"
 
@@ -216,6 +247,20 @@ def parser() -> argparse.ArgumentParser:
         help="Silent mode."
     )
 
+    parser.add_argument(
+        "--options",
+        type=str,
+        default="",
+        help="Fuzz options as well (give path to options generate script)."
+    )
+
+    parser.add_argument(
+        "--amount",
+        type=int,
+        default=-1,
+        help="How many cnfs to fuzz and verify. If not given = infinite"
+    )
+
     return parser
 
 
@@ -251,7 +296,7 @@ if __name__ == "__main__":
                 pretty(out, count, status, filename)
 
     if parse.cnf == "" and parse.directory == "":
-        while True:
+        while parse.amount == -1 or parse.amount > 0:
             dc = fuzz_with_models()
             ic = ipall(f"{parse.tmpdir}/{parse.fuzzname}.cnf")
             out = {"dualiza": dc, "ipall": ic}
@@ -265,3 +310,6 @@ if __name__ == "__main__":
             if status is Status.TIMEOUT:
                 os.makedirs(parse.timeoutdir, exist_ok=True)
                 shutil.copy(f"{parse.tmpdir}/{parse.fuzzname}.cnf", f"{parse.timeoutdir}/fuzzed_{count.count}_dc{dc}_ic{ic}_timeout.cnf")
+
+            if parse.amount > 0:
+                parse.amount -= 1

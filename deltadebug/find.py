@@ -5,7 +5,7 @@ import os
 
 def find_failed_cnf():
     subprocess.run(
-        ["python3", "../verify/verify.py", "--size", "small", "--timeout", "60", "--break_on_fail", "True", "--faileddir", "./tmp_failed", "--timeoutdir", "./tmp_timeout", "--silent", "True"],
+        ["python3", "../verify/verify.py", "--size", "small", "--timeout", "60", "--break_on_fail", "True", "--faileddir", "./tmp_failed", "--timeoutdir", "./tmp_timeout", "--silent", "True", "--options", "../../cadical/scripts/generate-options-range-list.sh"],
         timeout=180,
     )
 

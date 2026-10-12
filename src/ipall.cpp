@@ -133,11 +133,13 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
 
             assert (list.size() > 0);
             if (solver->is_decision(list[0])) {
-                if (decisions.size() <= dl) {
-                    decisions.push_back(list[0]);
-                } else {
-                    decisions[dl] = list[0];
-                }
+                assert (decisions.size() == dl);
+                decisions.push_back(list[0]);
+                // if (decisions.size() <= dl) {
+                //     decisions.push_back(list[0]);
+                // } else {
+                //     decisions[dl] = list[0];
+                // }
                 if (VERBOSE) std::cout << "c decided: " << decisions[dl] << "@" << dl << std::endl;
             }
         };
@@ -296,6 +298,8 @@ int main(int argc, char* argv[]) {
     for (int var = 1; var <= numVariables; var++) {
         solver->add_observed_var(var);
     }
+
+    solver->options();
 
     // run solver
     if (VERBOSE) std::cout << "c start solving\nc" << std::endl;
