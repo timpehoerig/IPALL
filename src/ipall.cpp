@@ -163,6 +163,11 @@ class EnumProp : public CaDiCaL::ExternalPropagator {
                 propagate_lit = true;
             }
             dl = new_level;
+
+            if (VERBOSE) {
+                if (propagate_lit) std::cout << "c decision to propagate: " << decision_to_propagate << std::endl;
+                else std::cout << "c no decision to propagate, but okay as there was no model" << std::endl;
+            }
         };
 
         // called before the solver makes a decision. Return your decision or 0 (solver makes one).
@@ -273,8 +278,9 @@ int main(int argc, char* argv[]) {
     solver->set("chronostrict", true);
     solver->set("restart", false);
     solver->set("inprocessing", false);
-    solver->set("rephase", true);
+    solver->set("rephase", false);
     solver->set("log", false);
+    solver->set("otfs", false);
 
     // create a new EnumProp instance
     EnumProp *ep = new EnumProp;

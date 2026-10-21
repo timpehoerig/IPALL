@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import random
+import re
 
 from enum import Enum
 from dataclasses import dataclass
@@ -116,8 +117,12 @@ class Color(Enum):
     BLUE = "\033[94m"
     MAGENTA = "\033[95m"
     CYAN = "\033[96m"
+    ORANGE = "\033[38;5;208m"
     WHITE = "\033[97m"
     RESET = "\033[0m"
+
+    DUALIZA = "\033[94m"
+    IPALL = "\033[96m"
 
 
 def color(text: str, color: Color) -> str:
@@ -125,10 +130,13 @@ def color(text: str, color: Color) -> str:
 
 
 def pretty(results: dict[str, int], count: Count, status: Status, cnf: str) -> None:
+    if parse.whisper:
+        print(f"\rTried: {count.count} fuzzed cnfs", end="", flush=True)
+        return
     if parse.silent:
         return
 
-    top: str = "count\tverified\tcorrect\tfalse\ttimeout\tdualiza\tipall\tCNF"
+    top: str = f"count\tverified\tcorrect\tfalse\ttimeout\t{color("dualiza", Color.DUALIZA)}\t{color("ipall", Color.IPALL)}\tCNF"
     bot: str = f"{count.count}\t"
 
     if status is Status.VERIFIED:
@@ -145,9 +153,59 @@ def pretty(results: dict[str, int], count: Count, status: Status, cnf: str) -> N
     if parse.cnf == "" and parse.directory == "":
         options += f" --size {parse.size}"
     options += f" --timeout {parse.timeout}"
+    if parse.options != "":
+        options += " --options"
     options += "\n"
 
-    print("\033[2J\033[H\n\n" + color(options, Color.CYAN) + color(top, Color.MAGENTA) + "\n" + bot)
+    print("\033[2J\033[H\n\n" + color(options, Color.ORANGE) + color(top, Color.MAGENTA) + "\n" + bot)
+
+
+ANSI_ESCAPE = re.compile(r'\033\[[0-9;]*m')
+
+
+def length(s: str) -> int:
+    return len(ANSI_ESCAPE.sub("", s))
+
+
+@dataclass
+class Stats:
+    name: str
+    status: Status
+    dualiza: int
+    ipall: int
+
+
+def pretty_stats(stats: list[Stats]):
+
+    def display(stat: Stats) -> str:
+        return f"{stat.name} {color(str(stat.dualiza), Color.DUALIZA)} {color(str(stat.ipall), Color.IPALL)}"
+
+    fail = list(filter(lambda s: s.status == Status.FAILED, stats))
+    timeout = list(filter(lambda s: s.status == Status.TIMEOUT, stats))
+
+    max_len = max(len(fail), len(timeout))
+
+    min_len = max(map(lambda s: length(display(s)) if s.status == Status.FAILED else 0, stats)) + 1
+
+    if max_len == 0:
+        return
+
+    print(f"\n{color("Fails:", Color.RED)}{" " * min_len}{color("Timeouts:", Color.YELLOW)}")
+
+    for i in range(max_len):
+
+        f = ""
+        if i < len(fail):
+            f = display(fail[i])
+
+        s = f"  {f}      {" " * (min_len - length(f))}"
+
+        if i < len(timeout):
+            s += display(timeout[i])
+
+        print(s)
+
+
 # ######################################
 
 
@@ -235,16 +293,23 @@ def parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--break_on_fail",
-        type=bool,
+        action=argparse.BooleanOptionalAction,
         default=False,
         help="Break on first failed CNF."
     )
 
     parser.add_argument(
         "--silent",
-        type=bool,
+        action=argparse.BooleanOptionalAction,
         default=False,
         help="Silent mode."
+    )
+
+    parser.add_argument(
+        "--whisper",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Only prints the number of runs."
     )
 
     parser.add_argument(
@@ -258,7 +323,14 @@ def parser() -> argparse.ArgumentParser:
         "--amount",
         type=int,
         default=-1,
-        help="How many cnfs to fuzz and verify. If not given = infinite"
+        help="How many CNFs to fuzz and verify. If not given = infinite"
+    )
+
+    parser.add_argument(
+        "--summarize",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="At the end print all failed and out timed CNFs"
     )
 
     return parser
@@ -279,6 +351,8 @@ if __name__ == "__main__":
 
     count = Count()
 
+    stats = []
+
     # create tmp dir if it does not exist
     os.makedirs(parse.tmpdir, exist_ok=True)
 
@@ -288,12 +362,18 @@ if __name__ == "__main__":
         pretty(out, count, status, parse.cnf)
 
     if parse.directory != "":
+        failed: list[str] = []
         for filename in os.listdir(parse.directory):
             if filename.endswith(".cnf"):
                 cnf_path = os.path.join(parse.directory, filename)
                 out = run(cnf_path)
                 status = check_results(out, count)
                 pretty(out, count, status, filename)
+                if parse.summarize:
+                    stats.append(Stats(filename, status, out["dualiza"], out["ipall"]))
+
+        if parse.summarize:
+            pretty_stats(stats)
 
     if parse.cnf == "" and parse.directory == "":
         while parse.amount == -1 or parse.amount > 0:
@@ -313,3 +393,9 @@ if __name__ == "__main__":
 
             if parse.amount > 0:
                 parse.amount -= 1
+
+            if parse.summarize:
+                stats.append(Stats(filename, status, dc, ic))
+
+        if parse.summarize:
+            pretty_stats(stats)
